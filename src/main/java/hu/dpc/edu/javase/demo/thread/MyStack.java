@@ -1,5 +1,8 @@
 package hu.dpc.edu.javase.demo.thread;
 
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,26 +14,39 @@ public class MyStack {
 
     private int index;
     private char[] buffer = new char[10];
-    private final Object lock = new Object();
+    private final Lock lock = new ReentrantLock();
+    private Condition NOT_EMPTY = lock.newCondition();
+    private Condition NOT_FULL = lock.newCondition();
 
     public void push(char c) {
         String tn = Thread.currentThread().getName();
-        synchronized (lock) {
+        try {
+            lock.lock();
             System.out.println(tn + ": push " + c);
+            while (index == buffer.length) {
+                try {
+                    NOT_FULL.await();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(MyStack.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
             buffer[index++] = c;
-            lock.notify();
+            NOT_EMPTY.signal();
+        } finally {
+            lock.unlock();
         }
     }
 
     public char pop() {
         String tn = Thread.currentThread().getName();
         char c;
-        synchronized (lock) {
+        try {
+            lock.lock();
             System.out.println(tn + ": pop");
             while (index == 0) {
                 try {
                     System.out.println(tn + ": waiting...");
-                    lock.wait();
+                    NOT_EMPTY.await();
                     if (index == 0) {
                         System.out.println(tn + ": VAKLARMA!!!!!!!!!!!!!!!!!!!");
                     }
@@ -42,7 +58,10 @@ public class MyStack {
                 }
             }
             c = buffer[--index];
+            NOT_FULL.signal();
             System.out.println(tn + ": popped " + c);
+        } finally {
+            lock.unlock();
         }
         return c;
     }

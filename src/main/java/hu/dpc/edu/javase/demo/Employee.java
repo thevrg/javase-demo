@@ -1,12 +1,15 @@
 package hu.dpc.edu.javase.demo;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  *
  * @author IQJB
  */
 public class Employee implements GenericEntity<Long>{
 
-    private Long id;
+    private static final AtomicLong counter = new AtomicLong();
+    private Long id = counter.incrementAndGet();
     private double salary;
     
     public double getSalary() {
